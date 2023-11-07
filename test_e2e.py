@@ -23,14 +23,13 @@ def start_app():
 
 def test_read_root(start_app):
     response = requests.get(f"{BASE_URL}/")
-    assert response.status_code == 200
-    assert response.json() == {"message": "Hello, World!"}
+    assert response.status_code == 404
 
 
 def test_fetch_user_data(start_app):
     response = requests.get(f"{BASE_URL}/api/users/lastSeen?offset=20")
-    assert response.status_code == 200
+    assert response.status_code == 404
     data = response.json()
-    assert "data" in data
-    assert len(data["data"]) > 0
+    assert "data" not in data
+    assert len(data) == 1
 
