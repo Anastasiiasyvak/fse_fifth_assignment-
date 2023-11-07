@@ -12,7 +12,7 @@ async def read_root():
 
 
 def fetch_user_data(offset):
-    url = f'https://sef.podkolzin.consulting/api/users/lastSeen?offset={offset}'
+    url = f'http://sef.podkolzin.consulting/api/users/lastSeen?offset={offset}'  # Змінив URL
     response = requests.get(url)
 
     if response.status_code == 200:
@@ -20,7 +20,6 @@ def fetch_user_data(offset):
         return data.get('data', [])
     else:
         return []
-
 
 def calculate_average(values):
     if not values:
