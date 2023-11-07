@@ -35,18 +35,22 @@ from datetime import datetime
 
 
 def calculate_daily_average(user_id, user_data):
-    activity = user_data.get("activity", [])
-    if not activity:
+    user = next((u for u in user_data if u["id"] == user_id), None)
+    if user:
+        activity = user.get("activity", [])
+        if not activity:
+            return 0
+
+        timestamps = [datetime.fromisoformat(ts) for ts in activity]
+
+        timestamps.sort()
+
+        time_diffs = [(timestamps[i + 1] - timestamps[i]).total_seconds() for i in range(len(timestamps) - 1)]
+
+        average_time = sum(time_diffs) / len(time_diffs)
+        return round(average_time)
+    else:
         return 0
-
-    timestamps = [datetime.fromisoformat(ts) for ts in activity]
-
-    timestamps.sort()
-
-    time_diffs = [(timestamps[i + 1] - timestamps[i]).total_seconds() for i in range(len(timestamps) - 1)]
-
-    average_time = sum(time_diffs) / len(time_diffs)
-    return round(average_time)
 
 
 def calculate_weekly_average(user_id, user_data):
