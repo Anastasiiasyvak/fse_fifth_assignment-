@@ -1,18 +1,17 @@
 from fastapi import FastAPI, HTTPException
 from typing import List, Dict, Optional
-import requests
+from datetime import datetime
 import uvicorn
+import requests
 
 app = FastAPI()
 
+USER_DATA_API_URL = 'http://sef.podkolzin.consulting/api/users/'
 
-@app.get("/")
-async def read_root():
-    return {"message": "Hello, World!"}
-
+reports = {}
 
 def fetch_user_data(offset):
-    url = f'http://sef.podkolzin.consulting/api/users/lastSeen?offset={offset}'  # Змінив URL
+    url = f'{USER_DATA_API_URL}lastSeen?offset={offset}'
     response = requests.get(url)
 
     if response.status_code == 200:
@@ -21,21 +20,8 @@ def fetch_user_data(offset):
     else:
         return []
 
-def calculate_average(values):
-    if not values:
-        return 0
-    return sum(values) / len(values)
-
-
-def calculate_total(values):
-    return sum(values)
-
-
-from datetime import datetime
-
-
 def calculate_daily_average(user_id, user_data):
-    user = next((u for u in user_data if u["id"] == user_id), None)
+    user = next((u for u in user_data if u["userId"] == user_id), None)
     if user:
         activity = user.get("activity", [])
         if not activity:
@@ -52,69 +38,78 @@ def calculate_daily_average(user_id, user_data):
     else:
         return 0
 
-
 def calculate_weekly_average(user_id, user_data):
-    activity = user_data.get("activity", [])
-    if not activity:
+    user = next((u for u in user_data if u["userId"] == user_id), None)
+    if user:
+        activity = user.get("activity", [])
+        if not activity:
+            return 0
+
+        timestamps = [datetime.fromisoformat(ts) for ts in activity]
+
+        timestamps.sort()
+
+        time_diffs = [(timestamps[i + 1] - timestamps[i]).total_seconds() for i in range(len(timestamps) - 1)]
+
+        average_time = sum(time_diffs) / len(time_diffs)
+
+        average_time_minutes = average_time / 60
+
+        weekly_average_time = average_time_minutes * 7
+
+        return round(weekly_average_time)
+    else:
         return 0
-
-    timestamps = [datetime.fromisoformat(ts) for ts in activity]
-
-    timestamps.sort()
-
-    time_diffs = [(timestamps[i + 1] - timestamps[i]).total_seconds() for i in range(len(timestamps) - 1)]
-
-    average_time = sum(time_diffs) / len(time_diffs)
-
-    average_time_minutes = average_time / 60
-
-    weekly_average_time = average_time_minutes * 7
-
-    return round(weekly_average_time)
-
 
 def calculate_total_time(user_id, user_data):
-    activity = user_data.get("activity", [])
-    if not activity:
+    user = next((u for u in user_data if u["userId"] == user_id), None)
+    if user:
+        activity = user.get("activity", [])
+        if not activity:
+            return 0
+
+        timestamps = [datetime.fromisoformat(ts) for ts in activity]
+
+        timestamps.sort()
+
+        total_time = (timestamps[-1] - timestamps[0]).total_seconds()
+        return round(total_time)
+    else:
         return 0
-
-    timestamps = [datetime.fromisoformat(ts) for ts in activity]
-
-    timestamps.sort()
-
-    total_time = (timestamps[-1] - timestamps[0]).total_seconds()
-    return round(total_time)
-
 
 def calculate_min_time(user_id, user_data):
-    activity = user_data.get("activity", [])
-    if not activity:
+    user = next((u for u in user_data if u["userId"] == user_id), None)
+    if user:
+        activity = user.get("activity", [])
+        if not activity:
+            return 0
+
+        timestamps = [datetime.fromisoformat(ts) for ts in activity]
+
+        min_time = min(timestamps).timestamp()
+
+        min_time_seconds = int(min_time)
+
+        return min_time_seconds
+    else:
         return 0
-
-    timestamps = [datetime.fromisoformat(ts) for ts in activity]
-
-    min_time = min(timestamps).timestamp()
-
-    min_time_seconds = int(min_time)
-
-    return min_time_seconds
-
 
 def calculate_max_time(user_id, user_data):
-    activity = user_data.get("activity", [])
-    if not activity:
+    user = next((u for u in user_data if u["userId"] == user_id), None)
+    if user:
+        activity = user.get("activity", [])
+        if not activity:
+            return 0
+
+        timestamps = [datetime.fromisoformat(ts) for ts in activity]
+
+        max_time = max(timestamps).timestamp()
+
+        max_time_seconds = int(max_time)
+
+        return max_time_seconds
+    else:
         return 0
-
-    timestamps = [datetime.fromisoformat(ts) for ts in activity]
-
-    max_time = max(timestamps).timestamp()
-
-    max_time_seconds = int(max_time)
-
-    return max_time_seconds
-
-reports = {}
-
 
 @app.post("/api/report/{report_name}", response_model=dict)
 async def create_report(report_name: str, report_data: Dict[str, List[str]]):
@@ -150,14 +145,12 @@ async def create_report(report_name: str, report_data: Dict[str, List[str]]):
 
     return report_result
 
-
 @app.get("/api/report/{report_name}", response_model=List[Dict[str, Optional[Dict[str, int]]]])
-async def get_report(report_name: str, date_from: str, date_to: str):
+async def get_report(report_name: str):
     if report_name not in reports:
         raise HTTPException(status_code=404, detail="Report not found")
 
     return reports[report_name]
 
 if __name__ == "__main__":
-    import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
